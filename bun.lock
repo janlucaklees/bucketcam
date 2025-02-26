@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "watercam",
+      "name": "bucketcam",
       "devDependencies": {
         "@types/bun": "latest",
       },
