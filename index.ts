@@ -14,7 +14,7 @@ const server = serve({
   // This is our HTTP request handler
   fetch(req) {
     const url = new URL(req.url);
-    const clientIP = server.requestIP(req);
+    const clientIP = server.requestIP(req)?.address;
     const timestamp = new Date().toISOString().replace("T", " ").split(".")[0]; // Format as YYYY-MM-DD HH:MM:SS
 
     console.log(`[${timestamp}] ${clientIP} accessed ${url.pathname}`);
