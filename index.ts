@@ -33,7 +33,7 @@ const server = serve({
             setInterval(() => {
               // Force the browser to re-request /snap by adding a timestamp query param
               document.getElementById('cameraFeed').src = '/snap?' + Date.now();
-            }, 1000);
+            }, 5000);
           </script>
         </body>
       </html>
