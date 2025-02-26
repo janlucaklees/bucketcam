@@ -3,9 +3,11 @@ import { file, serve } from 'bun';
 
 const PORT = 3000;
 
-// Change this to match your Windows webcam device name
-// To discover the name, run:  ffmpeg -list_devices true -f dshow -i dummy
-const WEBCAM_NAME = 'HP TrueVision HD Camera';
+// Grab the camera name from command-line arguments:
+// e.g., `bun index.js "USB2.0 HD UVC WebCam"`
+const args = process.argv.slice(2);
+const WEBCAM_NAME = args[0] || 'Integrated Camera';
+
 
 const server = serve({
   port: PORT,
