@@ -1,4 +1,6 @@
-# watercam
+# Bucketcam
+
+This helps me monitor a water leak on my attic without getting up there myself.
 
 To install dependencies:
 
