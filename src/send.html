@@ -1,0 +1,101 @@
+<html>
+  <head>
+    <title>Yuzu-Phone</title>
+    <style>
+      html {
+        box-sizing: border-box;
+        font-size: 16px;
+      }
+
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-weight: normal;
+      }
+
+      .player {
+        width: 100vw;
+        height: 100vh;
+        object-fit: contain;
+      }
+    </style>
+  </head>
+  <body>
+    <video class="player" id="localPlayer" autoplay muted></video>
+
+    <script>
+      (async function () {
+        // Init WebSocket connection
+        const socket = await new Promise((resolve, reject) => {
+          const socket = new WebSocket("ws://minipluginbaby:3000/ws");
+          socket.addEventListener("error", reject);
+          socket.addEventListener("open", () => resolve(socket));
+        });
+
+        // Get Media devices
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+
+        // Show the local stream to the user
+        const localPlayer = document.getElementById("localPlayer");
+        localPlayer.srcObject = stream;
+
+        let peerConnection;
+
+        // Handling messages
+        socket.addEventListener("message", async (event) => {
+          const message = JSON.parse(event.data);
+
+          // Handling offers "calls"
+          if (message.type === "offer") {
+            console.log("got offer!");
+
+            // Create the peer connection
+            peerConnection = new RTCPeerConnection();
+
+            // Add the video stream to the peer connection.
+            for (const track of stream.getTracks()) {
+              peerConnection.addTrack(track, stream);
+            }
+
+            // Eventlistener for ice candidates
+            peerConnection.addEventListener("icecandidate", (event) => {
+              if (event.candidate) {
+                console.log("sending ice-candidate...");
+                socket.send(
+                  JSON.stringify({
+                    type: "ice-candidate",
+                    data: event.candidate,
+                  }),
+                );
+              }
+            });
+
+            peerConnection.setRemoteDescription(
+              new RTCSessionDescription(message.data),
+            );
+
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            console.log("sending answer...");
+            socket.send(JSON.stringify({ type: "answer", data: answer }));
+          }
+
+          if (message.type === "ice-candidate") {
+            console.log("got ice-candidate!");
+            peerConnection.addIceCandidate(message.data);
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

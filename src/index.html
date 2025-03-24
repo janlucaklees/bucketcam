@@ -1,0 +1,145 @@
+<html>
+  <head>
+    <title>Yuzu-Phone</title>
+    <link rel="stylesheet" href="./style.scss" />
+    <style>
+      html {
+        box-sizing: border-box;
+        font-size: 16px;
+      }
+
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-weight: normal;
+      }
+
+      .player {
+        width: 100vw;
+        height: 100vh;
+        object-fit: contain;
+      }
+
+      .player.player--uninitialized {
+        filter: blur(1.5rem) saturate(0) opacity(0.5);
+      }
+
+      .player-wrapper {
+        position: relative;
+      }
+
+      .button {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+
+        padding: 0.5em 1em;
+
+        border: 0.2em solid black;
+        border-radius: 50rem;
+        background-color: white;
+
+        font-size: 1.5rem;
+        font-weight: bold;
+
+        box-shadow:
+          rgba(0, 0, 0, 0.25) 0px 54px 55px,
+          rgba(0, 0, 0, 0.12) 0px -12px 30px,
+          rgba(0, 0, 0, 0.12) 0px 4px 6px,
+          rgba(0, 0, 0, 0.17) 0px 12px 13px,
+          rgba(0, 0, 0, 0.09) 0px -3px 5px;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="player-wrapper">
+      <video
+        class="player rounded player--uninitialized"
+        id="remotePlayer"
+        autoplay
+        muted
+      ></video>
+      <button class="button hidden">Verbinden</button>
+    </div>
+    <script>
+      (async function () {
+        // Init WebSocket connection
+        const socket = await new Promise((resolve, reject) => {
+          const socket = new WebSocket("ws://minipluginbaby:3000/ws");
+          socket.addEventListener("error", reject);
+          socket.addEventListener("open", () => resolve(socket));
+        });
+
+        // Create the peer connection
+        const peerConnection = new RTCPeerConnection();
+
+        // We need to state that we want to receive video, without sending.
+        peerConnection.addTransceiver("video", { direction: "recvonly" });
+        peerConnection.addTransceiver("audio", { direction: "recvonly" });
+
+        // Eventlistener for ice candidates
+        peerConnection.addEventListener("icecandidate", (event) => {
+          if (event.candidate) {
+            console.log("sending ice-candidate...");
+            socket.send(
+              JSON.stringify({
+                type: "ice-candidate",
+                data: event.candidate,
+              }),
+            );
+          }
+        });
+
+        // Event listener for displaying remote stream
+        peerConnection.addEventListener("track", (event) => {
+          console.log("got track!");
+
+          const remotePlayer = document.getElementById("remotePlayer");
+          remotePlayer.srcObject = event.streams[0];
+
+          const button = document.querySelector(".button");
+          button.classList.remove("hidden");
+          button.addEventListener("click", () => {
+            button.classList.add("hidden");
+            remotePlayer.classList.remove("player--uninitialized");
+            remotePlayer.muted = false;
+          });
+        });
+
+        // Handling messages
+        socket.addEventListener("message", async (event) => {
+          const message = JSON.parse(event.data);
+
+          if (message.type === "answer") {
+            console.log("got answer!");
+            peerConnection.setRemoteDescription(
+              new RTCSessionDescription(message.data),
+            );
+          }
+
+          if (message.type === "ice-candidate") {
+            console.log("got ice-candidate!");
+            peerConnection.addIceCandidate(message.data);
+          }
+        });
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+
+        console.log("sending offer...");
+        socket.send(JSON.stringify({ type: "offer", data: offer }));
+      })();
+    </script>
+  </body>
+</html>
